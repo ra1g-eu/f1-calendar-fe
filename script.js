@@ -1,5 +1,5 @@
 // Base URL for API requests
-const API_BASE_URL = 'http://127.0.0.1:8000/api/f1/admin';
+const API_BASE_URL = 'http://127.0.0.1:9000/api/f1/admin';
 
 // Fetch events and populate the table
 function fetchEvents() {
