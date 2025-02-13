@@ -61,11 +61,11 @@
 
 <script>
     async function fetchEvents() {
-        const response = await fetch("http://localhost:9000/api/f1/");
-        const data = await response.json();
         if (sessionStorage.getItem('events')) {
             renderEvents(Object.values(JSON.parse(sessionStorage.getItem('events'))));
         } else {
+            const response = await fetch("http://localhost:9000/api/f1/");
+            const data = await response.json();
             renderEvents(Object.values(data));
             sessionStorage.setItem('events', JSON.stringify(data));
         }
@@ -79,6 +79,7 @@
         let scrollToElement = null;
 
         events.forEach(event => {
+            event.sessions.sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
             const eventDays = event.sessions.map(s => new Date(s.date_start));
             const isCurrent = eventDays.some(date => date.toDateString() === now.toDateString());
             const isFuture = eventDays.some(date => date > now);
@@ -86,7 +87,7 @@
             let eventFlag = event.infos.find(info => info.definition.key === 'country_flag_code')?.value;
             let eventUrl = event.infos.find(info => info.definition.key === 'event_url')?.value;
             let highlight = false;
-            let indicator = null;
+            let indicator;
             let highLightClass = 'bg-neutral border-gray-300';
 
             let firstSessionDate = new Date(event.sessions[0].date_start);
@@ -120,21 +121,20 @@
                 indicatorDiv.innerHTML = indicator;
             }
 
-            event.sessions.sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
             let sessionsCount = event.sessions.length;
 
             card.innerHTML = `
             <input type="checkbox" class="peer">
-            <div class="collapse-title text-xl font-medium">${eventFlag} ${event.name}</div>
+            <div class="collapse-title text-xl font-medium">${eventFlag} ${formatString(event.name)}</div>
             <div class="collapse-content flex flex-col space-y-2">
             <div class="card image-full shadow-xl">
                 <figure>
                 <div class="skeleton h-58 w-40"></div>
-                <img data-src="${eventImage}" class="lazy-img w-full h-40 object-cover rounded-md hidden" alt="Event Image">
+                <img data-src="${eventImage}" class="lazy-img object-scale-down rounded-md hidden" alt="Event Image">
                 </figure>
                 <div class="card-body flex items-center justify-center">
                 <ul class="timeline timeline-vertical">
-${event.sessions.map((session, index) => {
+                ${event.sessions.map((session, index) => {
                 const locale = getLocale() ?? navigator.language; // Get user's locale
                 const dateOptions = {
                     day: "2-digit",
@@ -277,12 +277,15 @@ ${event.sessions.map((session, index) => {
         let localeUl = document.getElementById('locale_ul');
         let timezoneUlOptions = '';
         let localeUlOptions = '';
+
         defaultTimezones.forEach(timezone => {
             timezoneUlOptions += `<li><a onclick="setTimezone('${timezone}')">${timezone}</a></li>`;
         });
+
         locales.forEach(locale => {
             localeUlOptions += `<li><a onclick="setLocale('${locale}')">${locale}</a></li>`;
         });
+
         timezoneUl.innerHTML = timezoneUlOptions;
         localeUl.innerHTML = localeUlOptions;
     }
@@ -306,15 +309,21 @@ ${event.sessions.map((session, index) => {
     }
 
     function resetSavedData() {
-        localStorage.removeItem('events');
+        sessionStorage.removeItem('events');
         localStorage.removeItem('timezone');
         localStorage.removeItem('locale');
         location.reload();
     }
 
+    function formatString(str) {
+        return str
+            .replace("2025", '')
+            .replace("FORMULA 1", '');
+    }
+
+    applySavedTheme();
     fetchEvents();
     generateCaptcha();
-    applySavedTheme();
     generateTimezoneAndLocale();
 </script>
 </body>
