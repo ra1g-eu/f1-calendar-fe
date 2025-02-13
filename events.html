@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F1 Events</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.23/dist/full.min.css" rel="stylesheet" type="text/css"/>
+    <link href="full.min.css" rel="stylesheet" type="text/css"/>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="flex flex-col items-center p-4" data-theme="cyberpunk">
 <div class="w-full max-w-3xl">
-    <h1 class="text-2xl font-bold text-center mb-4">Formula 1 Events</h1>
+    <h1 class="text-2xl font-bold text-center mb-4 p-5">Formula 1 Calendar</h1>
     <div id="events-container" class="space-y-4"></div>
 </div>
 
@@ -23,13 +23,52 @@
     <button onclick="submitSuggestion()" class="btn btn-primary w-full mt-2">Submit</button>
 </footer>
 
-<button onclick="toggleTheme()" class="btn btn-secondary mt-4">Toggle Theme</button>
+<div class="w-full max-w-3xl mt-4 text-center">
+    <button onclick="reset_data_modal.showModal()" class="btn btn-warning-content rounded-md shadow-md">Reset</button>
+    <button onclick="toggleTheme()" class="btn btn-neutral rounded-md shadow-md">Theme</button>
+    <div class="dropdown dropdown-top">
+        <div tabindex="0" role="button" class="btn btn-neutral rounded-md shadow-md">Locale</div>
+        <ul tabindex="0" id="locale_ul" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+            <li><a>Item 1</a></li>
+            <li><a>Item 2</a></li>
+        </ul>
+    </div>
+    <div class="dropdown dropdown-top">
+        <div tabindex="0" role="button" class="btn btn-neutral rounded-md shadow-md">Timezone</div>
+        <ul tabindex="0" id="timezone_ul" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+            <li><a>Item 1</a></li>
+            <li><a>Item 2</a></li>
+        </ul>
+    </div>
+</div>
+
+<dialog id="reset_data_modal" class="modal">
+    <div class="modal-box">
+        <form method="dialog">
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+        </form>
+        <h3 class="text-lg font-bold">Hello!</h3>
+        <p class="py-4">Are you sure you want to reset locally saved data and reload the page?</p>
+        <p>This will delete locales, timezones & calendar.</p>
+        <div class="modal-action">
+            <form method="dialog">
+                <button class="btn btn-error" onclick="resetSavedData()">Delete</button>
+                <button class="btn btn-neutral">Close</button>
+            </form>
+        </div>
+    </div>
+</dialog>
 
 <script>
     async function fetchEvents() {
         const response = await fetch("http://localhost:9000/api/f1/");
         const data = await response.json();
-        renderEvents(Object.values(data));
+        if (sessionStorage.getItem('events')) {
+            renderEvents(Object.values(JSON.parse(sessionStorage.getItem('events'))));
+        } else {
+            renderEvents(Object.values(data));
+            sessionStorage.setItem('events', JSON.stringify(data));
+        }
     }
 
     function renderEvents(events) {
@@ -43,9 +82,16 @@
             const eventDays = event.sessions.map(s => new Date(s.date_start));
             const isCurrent = eventDays.some(date => date.toDateString() === now.toDateString());
             const isFuture = eventDays.some(date => date > now);
+            let eventImage = event.infos.find(info => info.definition.key === 'image')?.value;
+            let eventFlag = event.infos.find(info => info.definition.key === 'country_flag_code')?.value;
+            let eventUrl = event.infos.find(info => info.definition.key === 'event_url')?.value;
             let highlight = false;
             let indicator = null;
             let highLightClass = 'bg-neutral border-gray-300';
+
+            let firstSessionDate = new Date(event.sessions[0].date_start);
+            let daysUntilFirstSession = Math.ceil((firstSessionDate - now) / (1000 * 60 * 60 * 24));
+            daysUntilFirstSession = daysUntilFirstSession < 0 ? null : daysUntilFirstSession;
 
             if (isCurrent) {
                 highlight = true;
@@ -56,10 +102,13 @@
                 highlight = true;
                 highlightNext = false;
                 highLightClass = 'bg-secondary-content border-yellow-500';
-                indicator = `<span class="indicator-item indicator-center badge badge-secondary">Upcoming</span>`;
+                indicator = `<span class="indicator-item indicator-center badge badge-secondary">Upcoming (${daysUntilFirstSession} days)</span>`;
+            } else {
+                indicator = `<span class="indicator-item indicator-center badge badge-base-300">${daysUntilFirstSession} days</span>`;
             }
+
             const card = document.createElement("div");
-            card.className = `collapse collapse-arrow border text-neutral-content rounded-lg ${highLightClass}`;
+            card.className = `collapse collapse-arrow border text-neutral-content rounded-lg ${highLightClass} mt-5 p-2 shadow-md`;
             if (scrollToElement === null && highlight) scrollToElement = card;
 
             const indicatorDiv = document.createElement("div");
@@ -76,16 +125,41 @@
 
             card.innerHTML = `
             <input type="checkbox" class="peer">
-            <div class="collapse-title text-xl font-medium">&#127464;&#127475; ${event.name}</div>
+            <div class="collapse-title text-xl font-medium">${eventFlag} ${event.name}</div>
             <div class="collapse-content flex flex-col space-y-2">
             <div class="card image-full shadow-xl">
                 <figure>
                 <div class="skeleton h-58 w-40"></div>
-                <img data-src="https://media.formula1.com/image/upload/f_auto,c_limit,w_1440,q_auto/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Track%20icons%204x3/China%20carbon" class="lazy-img w-full h-40 object-cover rounded-md hidden" alt="Event Image">
+                <img data-src="${eventImage}" class="lazy-img w-full h-40 object-cover rounded-md hidden" alt="Event Image">
                 </figure>
                 <div class="card-body flex items-center justify-center">
                 <ul class="timeline timeline-vertical">
-                    ${event.sessions.map((session, index) => `
+${event.sessions.map((session, index) => {
+                const locale = getLocale() ?? navigator.language; // Get user's locale
+                const dateOptions = {
+                    day: "2-digit",
+                    month: "short", //text
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                };
+
+                let dateSettings = getTimezone() ? {timeZone: getTimezone(), ...dateOptions} : dateOptions;
+                let endDateSettings = getTimezone() ? {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                    timeZone: getTimezone()
+                } : {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                };
+
+                const startDate = new Date(session.date_start + 'Z').toLocaleString(locale, dateSettings).replace(",", "");
+                const endDate = session.date_end ? new Date(session.date_end + 'Z').toLocaleString(locale, endDateSettings).replace(",", "") : null;
+
+                return `
   <li>
   ${index === 0 ? '' : '<hr/>'}
     <div class="timeline-start">${session.definition.name}</div>
@@ -94,14 +168,15 @@
         <path fill-rule="evenodd" d="M2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Zm11-4a1 1 0 1 0-2 0v4a1 1 0 0 0 .293.707l3 3a1 1 0 0 0 1.414-1.414L13 11.586V8Z" clip-rule="evenodd"/>
         </svg>
     </div>
-    <div class="timeline-end timeline-box text-neutral bg-neutral-content">${new Date(session.date_start + 'Z').toLocaleString()} - ${session.date_end ? new Date(session.date_end + 'Z').toLocaleString() : ''}</div>
+    <div class="timeline-end timeline-box text-neutral bg-neutral-content">${startDate} ${endDate ? '- ' + endDate : ''}</div>
     ${sessionsCount === index + 1 ? '' : '<hr/>'}
   </li>
-                    `).join('')}
+    `;
+            }).join('')}
                     </ul>
                     <div class="card-actions">
-                        <button class="btn btn-primary">Watch</button>
-                        <button class="btn btn-primary">Watch</button>
+                        <button class="btn btn-primary" onclick="window.open('${eventUrl}', '_blank')">F1.com</button>
+                        <button class="btn btn-primary" onclick="window.open('multiviewer:open', '_self')">Open Multiviewer</button>
                     </div>
                 </div>
             </div>
@@ -162,9 +237,85 @@
         }
     }
 
+    function generateTimezoneAndLocale() {
+        let defaultTimezones = [
+            'Europe/Bratislava',
+            'Europe/Prague',
+            'Europe/Berlin',       // Central European Time
+            'America/New_York',    // Eastern Time
+            'Asia/Kolkata',        // Indian Standard Time
+            'Asia/Dubai',          // Gulf Standard Time
+            'Asia/Tokyo',          // Japan Standard Time
+            'Europe/Paris',        // Central European Time
+            'America/Los_Angeles', // Pacific Time
+            'America/Chicago',     // Central Time
+            'Asia/Shanghai',       // China Standard Time
+            'Asia/Singapore',      // Singapore Time
+            'Australia/Sydney',    // Eastern Australia Time
+            'Europe/London',       // Greenwich Mean Time / British Summer Time
+            'Africa/Johannesburg'  // South Africa Standard Time
+        ];
+
+        let locales = [
+            'sk-SK',
+            'cs-CZ',
+            'de-DE',   // Germany (Europe/Berlin)
+            'en-US',   // United States (America/New_York)
+            'hi-IN',   // India (Asia/Kolkata)
+            'ar-AE',   // United Arab Emirates (Asia/Dubai)
+            'ja-JP',   // Japan (Asia/Tokyo)
+            'fr-FR',   // France (Europe/Paris)
+            'en-US',   // United States (America/Los_Angeles)
+            'zh-CN',   // China (Asia/Shanghai)
+            'en-SG',   // Singapore (Asia/Singapore)
+            'en-AU',   // Australia (Australia/Sydney)
+            'en-GB',   // United Kingdom (Europe/London)
+            'en-ZA'    // South Africa (Africa/Johannesburg)
+        ];
+
+        let timezoneUl = document.getElementById('timezone_ul');
+        let localeUl = document.getElementById('locale_ul');
+        let timezoneUlOptions = '';
+        let localeUlOptions = '';
+        defaultTimezones.forEach(timezone => {
+            timezoneUlOptions += `<li><a onclick="setTimezone('${timezone}')">${timezone}</a></li>`;
+        });
+        locales.forEach(locale => {
+            localeUlOptions += `<li><a onclick="setLocale('${locale}')">${locale}</a></li>`;
+        });
+        timezoneUl.innerHTML = timezoneUlOptions;
+        localeUl.innerHTML = localeUlOptions;
+    }
+
+    function setTimezone(timezone) {
+        localStorage.setItem('timezone', timezone);
+        renderEvents(Object.values(JSON.parse(sessionStorage.getItem('events'))));
+    }
+
+    function getTimezone() {
+        return localStorage.getItem('timezone');
+    }
+
+    function setLocale(locale) {
+        localStorage.setItem('locale', locale);
+        renderEvents(Object.values(JSON.parse(sessionStorage.getItem('events'))));
+    }
+
+    function getLocale() {
+        return localStorage.getItem('locale');
+    }
+
+    function resetSavedData() {
+        localStorage.removeItem('events');
+        localStorage.removeItem('timezone');
+        localStorage.removeItem('locale');
+        location.reload();
+    }
+
     fetchEvents();
     generateCaptcha();
     applySavedTheme();
+    generateTimezoneAndLocale();
 </script>
 </body>
 </html>
