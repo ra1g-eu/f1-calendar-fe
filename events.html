@@ -60,11 +60,24 @@
 </dialog>
 
 <script>
+    const env_local = {
+        url: 'http://localhost:9000/api/f1/',
+    }
+    const env_prod = {
+        url: 'https://ra1g.kobohome.eu/api/f1/',
+    }
+
+    let env;
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        env = env_local;
+    } else {
+        env = env_prod;
+    }
     async function fetchEvents() {
         if (sessionStorage.getItem('events')) {
             renderEvents(Object.values(JSON.parse(sessionStorage.getItem('events'))));
         } else {
-            const response = await fetch("http://localhost:9000/api/f1/");
+            const response = await fetch(env.url);
             const data = await response.json();
             renderEvents(Object.values(data));
             sessionStorage.setItem('events', JSON.stringify(data));

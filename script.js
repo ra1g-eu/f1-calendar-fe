@@ -1,5 +1,19 @@
 // Base URL for API requests
-const API_BASE_URL = 'http://127.0.0.1:9000/api/f1/admin';
+const API_BASE_URL = 'https://ra1g.kobohome.eu/api/f1/admin';
+
+const env_local = {
+    url: 'http://localhost:9000/api/f1/admin',
+}
+const env_prod = {
+    url: 'https://ra1g.kobohome.eu/api/f1/admin',
+}
+
+let env;
+if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    env = env_local;
+} else {
+    env = env_prod;
+}
 
 // Fetch events and populate the table
 function fetchEvents() {
@@ -10,7 +24,7 @@ function fetchEvents() {
         return;
     }
 
-    fetch(`${API_BASE_URL}/events`, {
+    fetch(`${env.url}/events`, {
         headers: {
             'Authorization': `Bearer ${token}`
         }
@@ -51,7 +65,7 @@ function fetchEvents() {
 // Fetch session definitions
 let sessionDefinitions = [];
 function fetchSessionDefinitions(token) {
-    fetch(`${API_BASE_URL}/session-definitions`, {
+    fetch(`${env.url}/session-definitions`, {
         headers: {
             'Authorization': `Bearer ${token}`
         }
@@ -72,7 +86,7 @@ function editEvent(eventId) {
         return;
     }
 
-    fetch(`${API_BASE_URL}/events/${eventId}`, {
+    fetch(`${env.url}/events/${eventId}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'
@@ -144,7 +158,7 @@ function saveEvent() {
 
     const eventId = Object.keys(event.sessions)[0];
 
-    fetch(`${API_BASE_URL}/events/${eventId}`, {
+    fetch(`${env.url}/events/${eventId}`, {
         method: 'PUT',
         headers: {
             'Authorization': `Bearer ${token}`,
